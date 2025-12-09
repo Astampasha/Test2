@@ -14,7 +14,7 @@
     --card-bg: #ffffff;
     --border-color: #ddd;
     --button-hover: #45a049;
-    --shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="dark"] {
@@ -27,7 +27,7 @@
     --card-bg: #2d2d2d;
     --border-color: #444;
     --button-hover: #81c784;
-    --shadow: 0 2px 4px rgba(0,0,0,0.3);
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 body {
@@ -144,7 +144,8 @@ h3 {
     background-color: var(--card-bg);
 }
 
-.section-btn, .subsection-btn {
+.section-btn,
+.subsection-btn {
     padding: 15px 20px;
     background-color: var(--card-bg);
     color: var(--text-color);
@@ -156,13 +157,15 @@ h3 {
     font-size: 14px;
 }
 
-.section-btn:hover, .subsection-btn:hover {
+.section-btn:hover,
+.subsection-btn:hover {
     border-color: var(--primary-color);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
-.section-btn.selected, .subsection-btn.selected {
+.section-btn.selected,
+.subsection-btn.selected {
     background-color: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
@@ -308,27 +311,27 @@ h3 {
     .section-buttons {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
-    
+
     .subsection-buttons {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
-    
+
     .question-container {
         padding: 20px;
     }
-    
+
     .question-text {
         font-size: 16px;
     }
-    
+
     .action-buttons {
         flex-direction: column;
     }
-    
+
     .test-navigation {
         flex-direction: column;
     }
-    
+
     .results-container {
         grid-template-columns: 1fr;
     }
@@ -338,20 +341,127 @@ h3 {
     .container {
         padding: 10px;
     }
-    
+
     h1 {
         font-size: 24px;
     }
-    
+
     .section-buttons {
         grid-template-columns: 1fr;
     }
-    
+
     .subsection-buttons {
         grid-template-columns: 1fr;
     }
-    
+
     .btn {
         width: 100%;
+    }
+}
+
+/* Header Controls */
+.header-controls {
+    display: flex;
+    justify-content: center;
+    /* Center the H1 */
+    align-items: center;
+    position: relative;
+    /* For absolute positioning of button */
+    margin-bottom: 30px;
+}
+
+.header-controls h1 {
+    margin-bottom: 0;
+}
+
+#selectionDarkModeBtn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Limit Toggle Container */
+.limit-toggle-container {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.switch-control {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.label-text {
+    margin-left: 10px;
+    font-weight: 500;
+}
+
+.limit-info {
+    font-size: 14px;
+    color: var(--text-color);
+    opacity: 0.8;
+    margin-top: 5px;
+}
+
+/* The Switch - the box around the slider */
+.switch-control input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: var(--primary-color);
+}
+
+input:focus+.slider {
+    box-shadow: 0 0 1px var(--primary-color);
+}
+
+input:checked+.slider:before {
+    transform: translateX(26px);
+}
+
+@media (max-width: 480px) {
+    #selectionDarkModeBtn {
+        position: static;
+        transform: none;
+        margin-left: 10px;
+    }
+
+    .header-controls {
+        flex-direction: row;
+        justify-content: space-between;
     }
 }
