@@ -58,7 +58,8 @@ const state = {
     questions: [],
     currentQuestionIndex: 0,
     answers: {},
-    darkMode: false
+    darkMode: false,
+    unansweredMode: false // Mode for cycling through unanswered questions only
 };
 
 // DOM Elements
@@ -69,7 +70,8 @@ const sectionButtons = document.getElementById('sectionButtons');
 const subsectionButtons = document.getElementById('subsectionButtons');
 const selectAllBtn = document.getElementById('selectAllBtn');
 const startBtn = document.getElementById('startBtn');
-const darkModeBtn = document.getElementById('darkModeBtn');
+const darkModeBtn = document.getElementById('darkModeBtn'); // Test screen btn
+const selectionDarkModeBtn = document.getElementById('selectionDarkModeBtn'); // Selection screen btn
 const questionContainer = document.getElementById('questionContainer');
 const questionCounter = document.getElementById('questionCounter');
 const prevBtn = document.getElementById('prevBtn');
@@ -78,6 +80,8 @@ const finishBtn = document.getElementById('finishBtn');
 const correctCount = document.getElementById('correctCount');
 const incorrectCount = document.getElementById('incorrectCount');
 const restartBtn = document.getElementById('restartBtn');
+const limitToggleContainer = document.getElementById('limitToggleContainer');
+const limitQuestionsToggle = document.getElementById('limitQuestionsToggle');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -90,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initializeSections() {
     // Create buttons for sections 1-3, 5-11
     const sections = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11];
-    
+
     sections.forEach(sectionNum => {
         const btn = document.createElement('button');
         btn.className = 'section-btn';
@@ -99,7 +103,7 @@ function initializeSections() {
         btn.addEventListener('click', () => toggleSection(sectionNum));
         sectionButtons.appendChild(btn);
     });
-    
+
     // Create 8 subsection buttons for section 4
     for (let i = 1; i <= 8; i++) {
         const btn = document.createElement('button');
@@ -114,8 +118,9 @@ function initializeSections() {
 // Setup event listeners
 function setupEventListeners() {
     selectAllBtn.addEventListener('click', selectAllSections);
-    startBtn.addEventListener('click', startTest);
+    startBtn.addEventListener('click', handleStartClick);
     darkModeBtn.addEventListener('click', toggleDarkMode);
+    selectionDarkModeBtn.addEventListener('click', toggleDarkMode);
     prevBtn.addEventListener('click', showPreviousQuestion);
     nextBtn.addEventListener('click', showNextQuestion);
     finishBtn.addEventListener('click', finishTest);
@@ -123,7 +128,7 @@ function setupEventListeners() {
 }
 
 // Toggle section selection
-function toggleSection(sectionNum) {
+async function toggleSection(sectionNum) {
     if (state.selectedSections.has(sectionNum)) {
         state.selectedSections.delete(sectionNum);
     } else {
@@ -131,10 +136,11 @@ function toggleSection(sectionNum) {
     }
     updateSectionButton(sectionNum);
     updateStartButton();
+    await checkQuestionCount(); // Check if we need to show toggle
 }
 
 // Toggle subsection selection
-function toggleSubsection(subsectionNum) {
+async function toggleSubsection(subsectionNum) {
     if (state.selectedSubsections.has(subsectionNum)) {
         state.selectedSubsections.delete(subsectionNum);
     } else {
@@ -142,6 +148,27 @@ function toggleSubsection(subsectionNum) {
     }
     updateSubsectionButton(subsectionNum);
     updateStartButton();
+    await checkQuestionCount(); // Check if we need to show toggle
+}
+
+// Helper: Check total questions to show/hide toggle
+async function checkQuestionCount() {
+    // Only check if we have selections
+    if (state.selectedSections.size === 0 && state.selectedSubsections.size === 0) {
+        limitToggleContainer.style.display = 'none';
+        return;
+    }
+
+    try {
+        const allQuestions = await collectQuestions();
+        if (allQuestions.length > 100) {
+            limitToggleContainer.style.display = 'block';
+        } else {
+            limitToggleContainer.style.display = 'none';
+        }
+    } catch (e) {
+        console.error("Error checking question count", e);
+    }
 }
 
 // Update section button appearance
@@ -168,22 +195,31 @@ function updateSubsectionButton(subsectionNum) {
     }
 }
 
-// Select all sections
-function selectAllSections() {
-    // Select all regular sections (1-3, 5-11)
-    const sections = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11];
-    sections.forEach(sectionNum => {
-        state.selectedSections.add(sectionNum);
-        updateSectionButton(sectionNum);
-    });
-    
-    // Select all subsections of section 4
-    for (let i = 1; i <= 8; i++) {
-        state.selectedSubsections.add(i);
-        updateSubsectionButton(i);
+// Select/Deselect all sections
+async function selectAllSections() {
+    // Check if everything is already selected
+    const allRegularSections = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11];
+    const allSubsections = [1, 2, 3, 4, 5, 6, 7, 8];
+
+    const allSelected = allRegularSections.every(id => state.selectedSections.has(id)) &&
+        allSubsections.every(id => state.selectedSubsections.has(id));
+
+    if (allSelected) {
+        // Deselect all
+        state.selectedSections.clear();
+        state.selectedSubsections.clear();
+    } else {
+        // Select all
+        allRegularSections.forEach(id => state.selectedSections.add(id));
+        allSubsections.forEach(id => state.selectedSubsections.add(id));
     }
-    
+
+    // Update UI
+    allRegularSections.forEach(id => updateSectionButton(id));
+    allSubsections.forEach(id => updateSubsectionButton(id));
+
     updateStartButton();
+    await checkQuestionCount();
 }
 
 // Update start button state
@@ -192,47 +228,73 @@ function updateStartButton() {
     startBtn.disabled = !hasSelection;
 }
 
-// Start test
-async function startTest() {
-    try {
-        // Load questions from selected sections
-        state.questions = [];
-        
-        // Load questions from regular sections
-        for (const sectionNum of state.selectedSections) {
-            const filename = sectionFileNames[sectionNum];
-            if (filename) {
-                const questions = await loadQuestions(filename);
-                state.questions.push(...questions);
-            }
+// Collect questions from selected sections
+async function collectQuestions() {
+    const collected = [];
+
+    // Load questions from regular sections
+    for (const sectionNum of state.selectedSections) {
+        const filename = sectionFileNames[sectionNum];
+        if (filename) {
+            const questions = await loadQuestions(filename);
+            collected.push(...questions);
         }
-        
-        // Load questions from section 4 subsections
-        for (const subsectionNum of state.selectedSubsections) {
-            const filename = subsectionFileNames[subsectionNum];
-            if (filename) {
-                const questions = await loadQuestions(filename);
-                state.questions.push(...questions);
-            }
-        }
-        
-        // Shuffle questions
-        shuffleArray(state.questions);
-        
-        // Initialize answers object
-        state.answers = {};
-        state.currentQuestionIndex = 0;
-        
-        // Show test screen
-        selectionScreen.classList.remove('active');
-        testScreen.classList.add('active');
-        
-        // Display first question
-        displayQuestion();
-    } catch (error) {
-        console.error('Error starting test:', error);
-        alert('შეცდომა ტესტის დაწყებისას. გთხოვთ, შეამოწმოთ ფაილები.');
     }
+
+    // Load questions from section 4 subsections
+    for (const subsectionNum of state.selectedSubsections) {
+        const filename = subsectionFileNames[subsectionNum];
+        if (filename) {
+            const questions = await loadQuestions(filename);
+            collected.push(...questions);
+        }
+    }
+
+    return collected;
+}
+
+// Handle Start Click
+async function handleStartClick() {
+    try {
+        let allQuestions = await collectQuestions();
+
+        if (allQuestions.length === 0) {
+            alert('suallar tapilmadi');
+            return;
+        }
+
+        // Apply limit if toggle is visible and checked
+        if (limitToggleContainer && limitToggleContainer.style.display !== 'none' && limitQuestionsToggle.checked) {
+            // Shuffle first, then take 100
+            shuffleArray(allQuestions);
+            allQuestions = allQuestions.slice(0, 100);
+        }
+
+        startTest(allQuestions);
+
+    } catch (error) {
+        console.error('Error preparing test:', error);
+        alert('error-Astana xeber et');
+    }
+}
+
+// Start test with specific set of questions
+function startTest(questionsToUse) {
+    // Clone and shuffle
+    state.questions = [...questionsToUse];
+    shuffleArray(state.questions);
+
+    // Initialize answers object
+    state.answers = {};
+    state.currentQuestionIndex = 0;
+    state.unansweredMode = false; // Reset unanswered mode for new test
+
+    // Show test screen
+    selectionScreen.classList.remove('active');
+    testScreen.classList.add('active');
+
+    // Display first question
+    displayQuestion();
 }
 
 // Load questions from JS/JSON file
@@ -243,7 +305,7 @@ async function loadQuestions(filename) {
             throw new Error(`Failed to load ${filename}`);
         }
         const text = await response.text();
-        
+
         // Parse JSON - .js files contain JSON arrays directly
         let data;
         try {
@@ -257,7 +319,7 @@ async function loadQuestions(filename) {
                 throw new Error('Could not parse JSON from file');
             }
         }
-        
+
         // Handle both array and object with questions property
         if (Array.isArray(data)) {
             return data;
@@ -286,31 +348,31 @@ function displayQuestion() {
         finishTest();
         return;
     }
-    
+
     const question = state.questions[state.currentQuestionIndex];
     const questionNum = state.currentQuestionIndex + 1;
     const totalQuestions = state.questions.length;
-    
+
     // Update counter
-    questionCounter.textContent = `კითხვა ${questionNum} / ${totalQuestions}`;
-    
+    questionCounter.textContent = `Sual ${questionNum} / ${totalQuestions}`;
+
     // Display question
     questionContainer.innerHTML = `
         <div class="question-text">${question.question}</div>
         <div class="options-container" id="optionsContainer"></div>
     `;
-    
+
     const optionsContainer = document.getElementById('optionsContainer');
     const userAnswer = state.answers[state.currentQuestionIndex];
     const isAnswered = userAnswer !== undefined;
-    
+
     // Display options
     question.options.forEach((option, index) => {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
         btn.textContent = option;
         btn.dataset.option = option;
-        
+
         if (isAnswered) {
             btn.classList.add('answered');
             if (option === question.correct_answer) {
@@ -321,19 +383,54 @@ function displayQuestion() {
         } else {
             btn.addEventListener('click', () => selectAnswer(option));
         }
-        
+
         optionsContainer.appendChild(btn);
     });
-    
+
     // Update navigation buttons
     prevBtn.disabled = state.currentQuestionIndex === 0;
-    nextBtn.disabled = state.currentQuestionIndex === state.questions.length - 1;
+
+    // Feature 2: Next button behavior update
+    // If it's the last question and there are unanswered questions, enable it to loop back.
+    // If it's the last question and all answered, it stays disabled (or could lead to finish).
+    // Original logic: nextBtn.disabled = state.currentQuestionIndex === state.questions.length - 1;
+
+    const isLastQuestion = state.currentQuestionIndex === state.questions.length - 1;
+    if (isLastQuestion) {
+        // Check if there are any skipped questions
+        const hasSkipped = hasSkippedQuestions();
+        if (hasSkipped) {
+            nextBtn.disabled = false;
+            nextBtn.textContent = 'Cavabsız'; // Shows unanswered questions
+        } else {
+            nextBtn.disabled = true;
+            nextBtn.textContent = 'Sonrakı';
+        }
+    } else {
+        nextBtn.disabled = false;
+        nextBtn.textContent = 'Sonrakı';
+    }
+}
+
+// Helper: Check for skipped questions
+function hasSkippedQuestions() {
+    for (let i = 0; i < state.questions.length; i++) {
+        if (state.answers[i] === undefined) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Select answer
 function selectAnswer(selectedOption) {
     state.answers[state.currentQuestionIndex] = selectedOption;
     displayQuestion(); // Refresh to show correct/incorrect colors
+
+    // Auto-finish test when all questions are answered
+    if (!hasSkippedQuestions()) {
+        setTimeout(() => finishTest(), 500); // Small delay so user sees their answer
+    }
 }
 
 // Show previous question
@@ -346,10 +443,47 @@ function showPreviousQuestion() {
 
 // Show next question
 function showNextQuestion() {
-    if (state.currentQuestionIndex < state.questions.length - 1) {
+    if (state.unansweredMode) {
+        // In unanswered mode - find next unanswered after current
+        const nextUnanswered = findNextUnansweredIndex(state.currentQuestionIndex + 1);
+        if (nextUnanswered !== -1) {
+            state.currentQuestionIndex = nextUnanswered;
+            displayQuestion();
+        } else {
+            // No more unanswered after current, loop back to first unanswered
+            const firstUnanswered = findNextUnansweredIndex(0);
+            if (firstUnanswered !== -1) {
+                state.currentQuestionIndex = firstUnanswered;
+                displayQuestion();
+            }
+        }
+    } else if (state.currentQuestionIndex < state.questions.length - 1) {
+        // Normal next behavior
         state.currentQuestionIndex++;
         displayQuestion();
+    } else {
+        // Last question - enter unanswered mode
+        const firstUnanswered = findNextUnansweredIndex(0);
+        if (firstUnanswered !== -1) {
+            state.currentQuestionIndex = firstUnanswered;
+            state.unansweredMode = true;
+            displayQuestion();
+        }
     }
+}
+
+// Find next unanswered question starting from a given index
+function findNextUnansweredIndex(startFrom) {
+    for (let i = startFrom; i < state.questions.length; i++) {
+        if (state.answers[i] === undefined) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+function findFirstSkippedIndex() {
+    return findNextUnansweredIndex(0);
 }
 
 // Finish test
@@ -357,7 +491,7 @@ function finishTest() {
     // Calculate results
     let correct = 0;
     let incorrect = 0;
-    
+
     state.questions.forEach((question, index) => {
         const userAnswer = state.answers[index];
         if (userAnswer === question.correct_answer) {
@@ -366,11 +500,11 @@ function finishTest() {
             incorrect++;
         }
     });
-    
+
     // Show results
     correctCount.textContent = correct;
     incorrectCount.textContent = incorrect;
-    
+
     // Switch to results screen
     testScreen.classList.remove('active');
     resultsScreen.classList.add('active');
@@ -384,7 +518,8 @@ function restart() {
     state.questions = [];
     state.currentQuestionIndex = 0;
     state.answers = {};
-    
+    state.unansweredMode = false; // Reset unanswered mode
+
     // Reset UI
     document.querySelectorAll('.section-btn').forEach(btn => {
         btn.classList.remove('selected');
@@ -392,8 +527,12 @@ function restart() {
     document.querySelectorAll('.subsection-btn').forEach(btn => {
         btn.classList.remove('selected');
     });
+
+    // Hide toggle
+    if (limitToggleContainer) limitToggleContainer.style.display = 'none';
+
     updateStartButton();
-    
+
     // Switch to selection screen
     resultsScreen.classList.remove('active');
     selectionScreen.classList.add('active');
@@ -402,21 +541,28 @@ function restart() {
 // Dark mode functions
 function toggleDarkMode() {
     state.darkMode = !state.darkMode;
+    updateDarkModeUI();
+    localStorage.setItem('darkMode', state.darkMode);
+}
+
+function updateDarkModeUI() {
+    const icon = state.darkMode ? '☀️' : '🌙';
     if (state.darkMode) {
         document.documentElement.setAttribute('data-theme', 'dark');
-        darkModeBtn.textContent = '☀️';
     } else {
         document.documentElement.setAttribute('data-theme', 'light');
-        darkModeBtn.textContent = '🌙';
     }
-    localStorage.setItem('darkMode', state.darkMode);
+
+    if (darkModeBtn) darkModeBtn.textContent = icon;
+    if (selectionDarkModeBtn) selectionDarkModeBtn.textContent = icon;
 }
 
 function loadDarkMode() {
     const saved = localStorage.getItem('darkMode');
     if (saved === 'true') {
         state.darkMode = true;
-        document.documentElement.setAttribute('data-theme', 'dark');
-        darkModeBtn.textContent = '☀️';
+    } else {
+        state.darkMode = false;
     }
+    updateDarkModeUI();
 }
