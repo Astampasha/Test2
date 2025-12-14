@@ -59,7 +59,8 @@ const state = {
     currentQuestionIndex: 0,
     answers: {},
     darkMode: false,
-    unansweredMode: false // Mode for cycling through unanswered questions only
+    unansweredMode: false, // Mode for cycling through unanswered questions only
+    questionLimit: 100 // Default limit
 };
 
 // DOM Elements
@@ -82,6 +83,11 @@ const incorrectCount = document.getElementById('incorrectCount');
 const restartBtn = document.getElementById('restartBtn');
 const limitToggleContainer = document.getElementById('limitToggleContainer');
 const limitQuestionsToggle = document.getElementById('limitQuestionsToggle');
+const limitQuestions200Toggle = document.getElementById('limitQuestions200Toggle');
+const limitQuestions500Toggle = document.getElementById('limitQuestions500Toggle');
+const decreaseLimitBtn = document.getElementById('decreaseLimitBtn');
+const increaseLimitBtn = document.getElementById('increaseLimitBtn');
+const currentLimitDisplay = document.getElementById('currentLimitDisplay');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -125,6 +131,55 @@ function setupEventListeners() {
     nextBtn.addEventListener('click', showNextQuestion);
     finishBtn.addEventListener('click', finishTest);
     restartBtn.addEventListener('click', restart);
+    setupLimitControls();
+}
+
+function setupLimitControls() {
+    // Toggles
+    limitQuestionsToggle.addEventListener('change', (e) => setLimit(100, e.target.checked));
+    limitQuestions200Toggle.addEventListener('change', (e) => setLimit(200, e.target.checked));
+    limitQuestions500Toggle.addEventListener('change', (e) => setLimit(500, e.target.checked));
+
+    // Buttons
+    decreaseLimitBtn.addEventListener('click', () => adjustLimit(-50));
+    increaseLimitBtn.addEventListener('click', () => adjustLimit(50));
+}
+
+function setLimit(value, isChecked) {
+    if (isChecked) {
+        state.questionLimit = value;
+    } else {
+        // If unchecking the currently active limit, go to unlimited
+        if (state.questionLimit === value) {
+            state.questionLimit = null;
+        }
+    }
+    updateLimitUI();
+}
+
+function adjustLimit(delta) {
+    // If currently unlimited, start from base
+    const current = state.questionLimit || 100;
+    const newLimit = current + delta;
+
+    if (newLimit >= 50) { // Minimum limit 50
+        state.questionLimit = newLimit;
+        updateLimitUI();
+    }
+}
+
+function updateLimitUI() {
+    // Update display
+    if (state.questionLimit === null) {
+        currentLimitDisplay.textContent = "Hamsı";
+    } else {
+        currentLimitDisplay.textContent = state.questionLimit;
+    }
+
+    // Update toggles - uncheck all if null, or check matching
+    limitQuestionsToggle.checked = state.questionLimit === 100;
+    limitQuestions200Toggle.checked = state.questionLimit === 200;
+    limitQuestions500Toggle.checked = state.questionLimit === 500;
 }
 
 // Toggle section selection
@@ -263,11 +318,20 @@ async function handleStartClick() {
             return;
         }
 
-        // Apply limit if toggle is visible and checked
-        if (limitToggleContainer && limitToggleContainer.style.display !== 'none' && limitQuestionsToggle.checked) {
-            // Shuffle first, then take 100
+        // Apply limit if toggle container is visible (checking simply if any sections selected logic handles this mostly)
+        // But specifically, we use state.questionLimit now. 
+        // We only limit if the count > limit? Or just always limit if user wants?
+        // Original logic was "if checked". Now we have multiple inputs.
+        // Let's say we always limit to state.questionLimit if container is visible.
+
+        if (limitToggleContainer && limitToggleContainer.style.display !== 'none') {
+            // Shuffle first
             shuffleArray(allQuestions);
-            allQuestions = allQuestions.slice(0, 100);
+
+            // Apply limit if set
+            if (state.questionLimit !== null) {
+                allQuestions = allQuestions.slice(0, state.questionLimit);
+            }
         }
 
         startTest(allQuestions);
