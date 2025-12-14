@@ -409,7 +409,36 @@ h3 {
     font-size: 14px;
     color: var(--text-color);
     opacity: 0.8;
-    margin-top: 5px;
+    margin-top: 15px;
+    /* Increased margin */
+}
+
+.toggles-wrapper {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.limit-adjust-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.limit-current-display {
+    font-size: 18px;
+    font-weight: bold;
+    min-width: 80px;
+    display: inline-block;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 14px;
 }
 
 /* The Switch - the box around the slider */
