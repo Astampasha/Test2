@@ -28,12 +28,30 @@
                 </div>
             </div>
             <div class="limit-toggle-container" id="limitToggleContainer" style="display: none;">
-                <label class="switch-control">
-                    <input type="checkbox" id="limitQuestionsToggle" checked>
-                    <span class="slider round"></span>
-                    <span class="label-text">100 Sual Limiti</span>
-                </label>
-                <p class="limit-info">Sual sayı 100-den çoxdur. Aktiv etdikde random 100 sual seçilecek.</p>
+                <div class="toggles-wrapper">
+                    <label class="switch-control">
+                        <input type="checkbox" id="limitQuestionsToggle" checked>
+                        <span class="slider round"></span>
+                        <span class="label-text">100 Sual</span>
+                    </label>
+                    <label class="switch-control">
+                        <input type="checkbox" id="limitQuestions200Toggle">
+                        <span class="slider round"></span>
+                        <span class="label-text">200 Sual</span>
+                    </label>
+                    <label class="switch-control">
+                        <input type="checkbox" id="limitQuestions500Toggle">
+                        <span class="slider round"></span>
+                        <span class="label-text">500 Sual</span>
+                    </label>
+                </div>
+
+                <div class="limit-adjust-controls">
+                    <button id="decreaseLimitBtn" class="btn btn-icon btn-sm">▼ -50</button>
+                    <span class="limit-current-display">Limit: <span id="currentLimitDisplay">100</span></span>
+                    <button id="increaseLimitBtn" class="btn btn-icon btn-sm">▲ +50</button>
+                </div>
+
             </div>
             <div class="action-buttons">
                 <button id="selectAllBtn" class="btn btn-secondary">Hamsı</button>
